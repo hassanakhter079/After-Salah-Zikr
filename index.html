@@ -617,6 +617,29 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
   color: var(--ink-soft);
   font-size: 15px;
 }
+.prow:not(.sun) {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.prow:not(.sun):hover {
+  background: var(--lamp-strong);
+}
+.prow:not(.sun):active {
+  background: var(--lamp-strong);
+  transform: scale(0.985);
+}
+:root[data-theme="amoled"] .prow:not(.sun):hover {
+  background: rgba(255,255,255,0.04);
+}
+:root[data-theme="amoled"] .prow:not(.sun):active {
+  background: rgba(255,255,255,0.08);
+}
+.prow:not(.sun):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
 .prow .pname { min-width: 0; }
 .prow .ptime { font-variant-numeric: tabular-nums; color: var(--ink-dim); font-size: 14px; }
 .prow .ptime small { font-size: 11px; margin-left: 2px; letter-spacing: 0.3px; }
@@ -1661,6 +1684,7 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
 
     <div class="home-side">
       <button class="btn solid" type="button" id="beginBtn">Begin zikr</button>
+      <button class="link-btn" type="button" id="startFreshBtn" hidden style="margin-top:8px;font-size:13.5px;" data-t="start_fresh">Start from beginning</button>
 
       <button class="streak-card" type="button" id="openCal" aria-label="Streak and monthly calendar">
         <span class="streak-count">
@@ -2064,6 +2088,16 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
     <p class="field-hint" data-t="how_hint">Your phone works out the times for every date from your location, so they stay correct without internet. They refresh by themselves each day and whenever you open the app. If you travel, tap Update times on the Today screen.</p>
   </div>
 
+  <div class="field">
+    <span class="field-label" data-t="set_backup">Backup & Restore</span>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn" type="button" id="btnExport" style="flex:1;padding:8px 12px;font-size:14px;" data-t="btn_export">Export data</button>
+      <button class="btn" type="button" id="btnImport" style="flex:1;padding:8px 12px;font-size:14px;" data-t="btn_import">Import data</button>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none;">
+    </div>
+    <div class="field-hint" data-t="backup_hint">Save your prayer streaks and history to a file, or restore them onto a new device.</div>
+  </div>
+
   <button class="btn" type="button" data-close-sheet data-t="btn_done">Done</button>
 </section>
 
@@ -2076,19 +2110,79 @@ function $(id) { return document.getElementById(id); }
 var root = document.documentElement;
 
 /* ══════════════════════════════════════
-   STORAGE (WebView-safe, memory fallback)
+   STORAGE (WebView-safe, IndexedDB backed, memory fallback)
 ══════════════════════════════════════ */
 var mem = {};
 var store = {
   get: function (k, d) {
-    try { var v = localStorage.getItem(k); if (v !== null) return JSON.parse(v); } catch (e) {}
+    try {
+      var v = localStorage.getItem(k);
+      if (v !== null && v !== undefined) return JSON.parse(v);
+    } catch (e) {}
     return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : d;
   },
   set: function (k, v) {
     mem[k] = v;
     try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+    idbSet(k, v);
   }
 };
+
+var IDB_DB = 'zikr_db', IDB_STORE = 'kv';
+function openIDB(cb) {
+  if (!('indexedDB' in window)) return;
+  try {
+    var req = indexedDB.open(IDB_DB, 1);
+    req.onupgradeneeded = function (e) {
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = function (e) { cb(e.target.result); };
+  } catch (e) {}
+}
+function idbSet(k, v) {
+  openIDB(function (db) {
+    try {
+      var tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(v, k);
+    } catch (e) {}
+  });
+}
+function idbRestore() {
+  openIDB(function (db) {
+    try {
+      var tx = db.transaction(IDB_STORE, 'readonly');
+      var st = tx.objectStore(IDB_STORE);
+      var req = st.getAllKeys ? st.getAllKeys() : null;
+      if (!req) return;
+      req.onsuccess = function () {
+        var keys = req.result;
+        if (!keys || !keys.length) return;
+        var restoredAny = false;
+        var remaining = keys.length;
+        keys.forEach(function (k) {
+          var getReq = st.get(k);
+          getReq.onsuccess = function (ev) {
+            var val = ev.target.result;
+            if (val !== undefined) {
+              if (localStorage.getItem(k) === null) {
+                try { localStorage.setItem(k, JSON.stringify(val)); } catch (e) {}
+                mem[k] = val;
+                if (k === 'zikr.log') {
+                  LOG = val;
+                  restoredAny = true;
+                }
+              }
+            }
+            remaining--;
+            if (remaining === 0 && restoredAny) renderHome();
+          };
+          getReq.onerror = function () { remaining--; };
+        });
+      };
+    } catch (e) {}
+  });
+}
 function has(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
 
 /* ══════════════════════════════════════
@@ -2116,7 +2210,11 @@ var EN = {
   loggedHint: 'Wrong prayer? Tap the right one.',
   calHint: 'Tap a prayer to mark it done or not done.',
   myLoc: 'My location', locating: 'Finding you…', locFail: 'Couldn’t get your location',
-  adj0: 'No change', adjM1: '1 day earlier', adjM: '{n} days earlier', adjP1: '1 day later', adjP: '{n} days later'
+  adj0: 'No change', adjM1: '1 day earlier', adjM: '{n} days earlier', adjP1: '1 day later', adjP: '{n} days later',
+  resume: 'Resume zikr after {p}', resumePlain: 'Resume zikr (Step {step} of 12)', start_fresh: 'Start from beginning',
+  set_backup: 'Backup & Restore', btn_export: 'Export data', btn_import: 'Import data',
+  backup_hint: 'Save your prayer streaks and history to a file, or restore them onto a new device.',
+  import_success: 'Progress restored successfully.', import_fail: 'Could not read backup file.'
 };
 
 var UR = {
@@ -2192,7 +2290,11 @@ var UR = {
   loggedHint: 'غلط نماز؟ درست نماز پر دبائیں۔',
   calHint: 'نماز پر دبا کر درج کریں یا ہٹائیں۔',
   myLoc: 'میری لوکیشن', locating: 'لوکیشن تلاش ہو رہی ہے…', locFail: 'لوکیشن نہیں مل سکی',
-  adj0: 'کوئی تبدیلی نہیں', adjM1: '1 دن پیچھے', adjM: '{n} دن پیچھے', adjP1: '1 دن آگے', adjP: '{n} دن آگے'
+  adj0: 'کوئی تبدیلی نہیں', adjM1: '1 دن پیچھے', adjM: '{n} دن پیچھے', adjP1: '1 دن آگے', adjP: '{n} دن آگے',
+  resume: '{p} کے بعد کا ذکر جاری رکھیں', resumePlain: 'ذکر جاری رکھیں (مرحلہ {step} از 12)', start_fresh: 'شروع سے دوبارہ کریں',
+  set_backup: 'بیک اپ اور بحالی', btn_export: 'ڈیٹا ایکسپورٹ کریں', btn_import: 'ڈیٹا امپورٹ کریں',
+  backup_hint: 'اپنی دعاؤں کا ریکارڈ اور سلسلہ فائل میں محفوظ کریں، یا نئے فون میں منتقل کریں۔',
+  import_success: 'ریکارڈ کامیابی سے بحال ہو گیا۔', import_fail: 'فائل پڑھی نہیں جا سکی۔'
 };
 
 function t(key, vars) {
@@ -2798,6 +2900,40 @@ function onEnter(idx) {
   if (idx === HOME) { renderHome(); releaseWake(); }
   if (idx === S_ASTAGHFAR) refreshAstaghfarHint();
   if (idx === LAST) { recordCompletion(); releaseWake(); }
+  saveActiveSession();
+}
+
+function saveActiveSession() {
+  if (cur > HOME && cur < LAST) {
+    store.set('zikr.session', {
+      cur: cur,
+      aCount: aCount,
+      tPhase: tPhase,
+      tCount: tCount,
+      time: Date.now()
+    });
+  } else {
+    store.set('zikr.session', null);
+  }
+}
+
+function autoMarkCurrentPrayer() {
+  var info = nowInfo(new Date());
+  var mask = getMask(info.dayKey);
+  if (!(mask & bit(info.logPrayer))) {
+    setMask(info.dayKey, mask | bit(info.logPrayer));
+  }
+}
+
+function toggleTodayPrayer(p) {
+  if (!p || p === 'sunrise') return;
+  var info = nowInfo(new Date());
+  var k = info.dayKey;
+  var mask = getMask(k) ^ bit(p);
+  setMask(k, mask);
+  if (session.logged && session.dayKey === k) session.wasSet = true;
+  if (mask & bit(p)) sfx.tap(); else sfx.undo();
+  renderHome();
 }
 
 /* ══════════════════════════════════════
@@ -2871,12 +3007,27 @@ function renderHome() {
     timeEl.textContent = c.hm;
     if (LANG !== 'ur') { var sm = document.createElement('small'); sm.textContent = c.ap; timeEl.appendChild(sm); }
     row.classList.toggle('now', p === info.current);
-    if (p !== 'sunrise') bead.classList.toggle('lit', !!(mask & bit(p)));
+    if (p !== 'sunrise') {
+      var done = !!(mask & bit(p));
+      bead.classList.toggle('lit', done);
+      row.setAttribute('role', 'checkbox');
+      row.setAttribute('aria-checked', String(done));
+      row.setAttribute('tabindex', '0');
+    }
   }
 
-  // Begin button
-  if (info.current) tx($('beginBtn'), 'begin', { p: prayerName(info.current, info.dayDate) });
-  else tx($('beginBtn'), 'beginPlain');
+  // Begin / Resume button
+  var active = store.get('zikr.session', null);
+  var canResume = active && (Date.now() - active.time < 3 * 3600 * 1000) && active.cur > HOME && active.cur < LAST;
+  var freshBtn = $('startFreshBtn');
+  if (freshBtn) freshBtn.hidden = !canResume;
+  if (canResume) {
+    if (info.current) tx($('beginBtn'), 'resume', { p: prayerName(info.current, info.dayDate) });
+    else tx($('beginBtn'), 'resumePlain', { step: active.cur });
+  } else {
+    if (info.current) tx($('beginBtn'), 'begin', { p: prayerName(info.current, info.dayDate) });
+    else tx($('beginBtn'), 'beginPlain');
+  }
 
   // Streak
   var n = streakFrom(info.dayDate);
@@ -2915,9 +3066,27 @@ function renderHome() {
 
 function startZikr() {
   if (session.logged) resetFlow();
-  if (showScreen(S_ASTAGHFAR, 1)) {
-    sfx.nav();
-    requestWake();
+  var active = store.get('zikr.session', null);
+  var canResume = active && (Date.now() - active.time < 3 * 3600 * 1000) && active.cur > HOME && active.cur < LAST;
+  if (canResume) {
+    aCount = active.aCount || 0;
+    for (var i = 0; i < 3; i++) $('ad' + i).classList.toggle('lit', i < aCount);
+    paintAstaghfarLabel();
+    tPhase = active.tPhase || 0;
+    tCount = active.tCount || 0;
+    tLocked = false;
+    paintTasbeeh();
+    paintTasbeehLabel(false);
+    if (showScreen(active.cur, 1, true)) {
+      sfx.nav();
+      requestWake();
+    }
+  } else {
+    resetFlow();
+    if (showScreen(S_ASTAGHFAR, 1)) {
+      sfx.nav();
+      requestWake();
+    }
   }
 }
 
@@ -2945,6 +3114,7 @@ function tapAstaghfar() {
   $('ad' + aCount).classList.add('lit');
   aCount++;
   paintAstaghfarLabel();
+  saveActiveSession();
   if (aCount === 3) {
     sfx.done();
     setHint('hintDone', false);
@@ -3067,6 +3237,7 @@ function tapTasbeeh() {
   }
   paintTasbeeh(tCount - 1);
   bumpNum();
+  saveActiveSession();
 }
 
 function advanceTasbeeh() {
@@ -3078,6 +3249,8 @@ function advanceTasbeeh() {
     sfx.phaseBig();
     paintTasbeeh();
     paintTasbeehLabel(true);
+    autoMarkCurrentPrayer();
+    saveActiveSession();
     autoAdvance(S_TASBEEH, 1100);
     return;
   }
@@ -3085,6 +3258,7 @@ function advanceTasbeeh() {
   sfx.phase();
   paintTasbeeh();            // still locked → undo disabled during the swap
   paintTasbeehLabel(true);
+  saveActiveSession();
   tTimer = setTimeout(function () { tLocked = false; paintTasbeeh(); }, 320);
 }
 
@@ -3093,6 +3267,7 @@ function undoTasbeeh() {
   tCount--;
   sfx.undo();
   paintTasbeeh();
+  saveActiveSession();
 }
 
 function resetTasbeeh(fade) {
@@ -3101,6 +3276,7 @@ function resetTasbeeh(fade) {
   tPhase = 0; tCount = 0; tLocked = false;
   paintTasbeeh();
   paintTasbeehLabel(fade);
+  saveActiveSession();
 }
 
 // Two taps to reset — a stray thumb shouldn't wipe 60 counts
@@ -3167,6 +3343,7 @@ function paintChips(container, mask, mine, dayDate) {
 var session = { logged: false };
 
 function recordCompletion() {
+  store.set('zikr.session', null);
   if (!session.logged) {
     var info = nowInfo(new Date());
     var mask = getMask(info.dayKey);
@@ -3201,6 +3378,7 @@ function renderFinale() {
 }
 
 function finishToHome() {
+  store.set('zikr.session', null);
   if (showScreen(HOME, -1, true)) sfx.nav();
 }
 
@@ -3216,6 +3394,7 @@ function resetFlow() {
   disarmReset();
   resetTasbeeh(false);
   session = { logged: false };
+  store.set('zikr.session', null);
 }
 
 /* ══════════════════════════════════════
@@ -3677,6 +3856,58 @@ function initGestures() {
 }
 
 /* ══════════════════════════════════════
+   BACKUP & RESTORE
+══════════════════════════════════════ */
+function exportData() {
+  var data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    log: store.get('zikr.log', {}),
+    prefs: store.get('zikr.prefs', null),
+    theme: store.get('zikr.theme', 'night'),
+    lang: store.get('zikr.lang', 'en')
+  };
+  var json = JSON.stringify(data, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'after-salah-zikr-backup-' + dayKey(new Date()) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+  vib(6);
+}
+
+function importData(file) {
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      if (data && typeof data === 'object') {
+        var importedLog = data.log || (typeof data === 'object' && !data.version ? data : null);
+        if (importedLog && typeof importedLog === 'object') {
+          for (var k in importedLog) {
+            if (importedLog[k] & FULL) {
+              LOG[k] = (getMask(k) | (importedLog[k] & FULL)) & FULL;
+            }
+          }
+          setMask(dayKey(new Date()), getMask(dayKey(new Date())));
+          renderHome();
+          if (sheetId === 'calSheet') renderCal();
+          vib(8);
+          alert(t('import_success'));
+        }
+      }
+    } catch (err) {
+      alert(t('import_fail'));
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ══════════════════════════════════════
    INIT
 ══════════════════════════════════════ */
 function init() {
@@ -3688,6 +3919,12 @@ function init() {
   buildChips($('calChips'), 'checkbox', toggleCalPrayer);
 
   onTap($('beginBtn'),      startZikr);
+  onTap($('startFreshBtn'), function () {
+    resetFlow();
+    store.set('zikr.session', null);
+    renderHome();
+    sfx.undo();
+  });
   onTap($('openCal'),       openCalendar);
   onTap($('openSettings'),  openSettings);
   onTap($('astaghfarCard'), tapAstaghfar);
@@ -3706,6 +3943,33 @@ function init() {
   onTap($('useLoc'),        useMyLocation);
   onTap($('hijriMinus'),    function () { if (S.hijri > -3) { S.hijri--; vib(4); settingsChanged(); } });
   onTap($('hijriPlus'),     function () { if (S.hijri < 3)  { S.hijri++; vib(4); settingsChanged(); } });
+
+  $('prayerList').addEventListener('click', function (e) {
+    var row = e.target.closest ? e.target.closest('.prow') : null;
+    if (!row) return;
+    var p = row.getAttribute('data-p');
+    if (p && p !== 'sunrise') toggleTodayPrayer(p);
+  });
+  $('prayerList').addEventListener('keydown', function (e) {
+    if (e.key === ' ' || e.key === 'Enter') {
+      var row = e.target.closest ? e.target.closest('.prow') : null;
+      if (!row) return;
+      var p = row.getAttribute('data-p');
+      if (p && p !== 'sunrise') {
+        e.preventDefault();
+        toggleTodayPrayer(p);
+      }
+    }
+  });
+
+  onTap($('btnExport'), exportData);
+  onTap($('btnImport'), function () { $('importFile').click(); });
+  $('importFile').addEventListener('change', function () {
+    if (this.files && this.files[0]) {
+      importData(this.files[0]);
+      this.value = '';
+    }
+  });
 
   $('calGrid').addEventListener('click', function (e) {
     var c = e.target.closest ? e.target.closest('.cal-cell') : null;
@@ -3790,6 +4054,8 @@ function init() {
   window.addEventListener('focus', resync);
   window.addEventListener('pageshow', resync);
   window.addEventListener('storage', resync);
+
+  idbRestore();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
