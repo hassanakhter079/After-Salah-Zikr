@@ -23,6 +23,7 @@
     if (JSON.parse(localStorage.getItem('zikr.lang')) === 'ur') document.documentElement.setAttribute('data-lang', 'ur');
   } catch (e) {}
 </script>
+<script src="cloud-sync.js" data-app="after-salah"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Literata:ital,opsz,wght@0,7..72,300..600;1,7..72,300..500&family=Noto+Nastaliq+Urdu:wght@400;600&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
@@ -2113,6 +2114,14 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
     <div class="field-hint" data-t="backup_hint">Save your prayer streaks and history to a file, or restore them onto a new device.</div>
   </div>
 
+  <div class="field">
+    <span class="field-label" data-t="set_cloud_sync">☁️ GitHub Cloud Sync</span>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn" type="button" id="btnCloudSync" style="flex:1;padding:8px 12px;font-size:14px;" data-t="btn_cloud_sync">Cloud Sync Settings</button>
+    </div>
+    <div class="field-hint" data-t="cloud_hint">Sync prayers and streaks automatically across your phone, tablet, and PC via your GitHub account.</div>
+  </div>
+
   <button class="btn" type="button" data-close-sheet data-t="btn_done">Done</button>
 </section>
 
@@ -2140,6 +2149,9 @@ var store = {
     mem[k] = v;
     try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
     idbSet(k, v);
+    if (typeof CloudSync !== 'undefined' && (k === 'zikr.log' || k === 'zikr.prefs' || k === 'zikr.theme' || k === 'zikr.lang')) {
+      CloudSync.push();
+    }
   }
 };
 
@@ -2229,7 +2241,9 @@ var EN = {
   resume: 'Resume zikr after {p}', resumePlain: 'Resume zikr (Step {step} of 13)', start_fresh: 'Start from beginning',
   set_backup: 'Backup & Restore', btn_export: 'Export data', btn_import: 'Import data',
   backup_hint: 'Save your prayer streaks and history to a file, or restore them onto a new device.',
-  import_success: 'Progress restored successfully.', import_fail: 'Could not read backup file.'
+  import_success: 'Progress restored successfully.', import_fail: 'Could not read backup file.',
+  set_cloud_sync: '☁️ GitHub Cloud Sync', btn_cloud_sync: 'Cloud Sync Settings',
+  cloud_hint: 'Sync prayers and streaks automatically across devices via GitHub.'
 };
 
 var UR = {
@@ -2312,7 +2326,9 @@ var UR = {
   resume: '{p} کے بعد کا ذکر جاری رکھیں', resumePlain: 'ذکر جاری رکھیں (مرحلہ {step} از 13)', start_fresh: 'شروع سے دوبارہ کریں',
   set_backup: 'بیک اپ اور بحالی', btn_export: 'ڈیٹا ایکسپورٹ کریں', btn_import: 'ڈیٹا امپورٹ کریں',
   backup_hint: 'اپنی دعاؤں کا ریکارڈ اور سلسلہ فائل میں محفوظ کریں، یا نئے فون میں منتقل کریں۔',
-  import_success: 'ریکارڈ کامیابی سے بحال ہو گیا۔', import_fail: 'فائل پڑھی نہیں جا سکی۔'
+  import_success: 'ریکارڈ کامیابی سے بحال ہو گیا۔', import_fail: 'فائل پڑھی نہیں جا سکی۔',
+  set_cloud_sync: '☁️ گٹ ہب کلاؤڈ سنک', btn_cloud_sync: 'کلاؤڈ سنک کی ترتیبات',
+  cloud_hint: 'گٹ ہب کے ذریعے تمام آلات پر دعاؤں کا ریکارڈ خودکار ہم آہنگ رکھیں۔'
 };
 
 function t(key, vars) {
@@ -3926,10 +3942,59 @@ function importData(file) {
   reader.readAsText(file);
 }
 
+function setupAfterSalahCloudSync() {
+  if (typeof CloudSync === 'undefined') return;
+  CloudSync.init({
+    appId: 'after-salah',
+    autoLocalStorage: false,
+    getPayload: function () {
+      return {
+        version: 1,
+        updatedAt: new Date().toISOString(),
+        log: LOG,
+        prefs: store.get('zikr.prefs', null),
+        theme: store.get('zikr.theme', 'night'),
+        lang: store.get('zikr.lang', 'en')
+      };
+    },
+    onPull: function (remoteData) {
+      if (!remoteData) return;
+      var changed = false;
+      var importedLog = remoteData.log;
+      if (importedLog && typeof importedLog === 'object') {
+        for (var k in importedLog) {
+          if (importedLog[k] & FULL) {
+            var current = getMask(k);
+            var merged = (current | (importedLog[k] & FULL)) & FULL;
+            if (merged !== current) {
+              LOG[k] = merged;
+              changed = true;
+            }
+          }
+        }
+      }
+      if (remoteData.theme && remoteData.theme !== store.get('zikr.theme')) {
+        store.set('zikr.theme', remoteData.theme);
+        applyTheme();
+      }
+      if (remoteData.lang && remoteData.lang !== store.get('zikr.lang')) {
+        store.set('zikr.lang', remoteData.lang);
+        applyLang();
+      }
+      if (changed) {
+        store.set('zikr.log', LOG);
+        renderHome();
+        if (sheetId === 'calSheet') renderCal();
+      }
+    }
+  });
+}
+
 /* ══════════════════════════════════════
    INIT
 ══════════════════════════════════════ */
 function init() {
+  setupAfterSalahCloudSync();
   collectStatic();
   applyTheme();
   buildProgress();
@@ -3982,6 +4047,9 @@ function init() {
   });
 
   onTap($('btnExport'), exportData);
+  onTap($('btnCloudSync'), function () {
+    if (typeof CloudSync !== 'undefined') CloudSync.openModal();
+  });
   onTap($('btnImport'), function () { $('importFile').click(); });
   $('importFile').addEventListener('change', function () {
     if (this.files && this.files[0]) {
