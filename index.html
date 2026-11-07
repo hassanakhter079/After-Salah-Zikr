@@ -300,7 +300,7 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
 
 .topmid { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; }
 
-/* The journey is a string of 12 beads */
+/* The journey is a string of 13 beads */
 .progress {
   position: relative;
   display: flex; align-items: center; gap: 8px;
@@ -846,16 +846,16 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
 .surah .mn { margin-top: 8px; }
 
 /* ════════════════════════════════════════
-   S12 — COMPLETE: the seal draws itself
+   S13 — COMPLETE: the seal draws itself
 ════════════════════════════════════════ */
 .finale { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; max-width: 400px; }
 .seal { width: 104px; height: 104px; color: var(--gold); margin-bottom: 10px; overflow: visible; }
 .seal .line { fill: none; stroke: currentColor; stroke-width: 1.1; }
 .seal .core { fill: currentColor; transform-box: fill-box; transform-origin: center; }
-#s12.active .seal .sq   { stroke-dasharray: 264; animation: drawSq 1.6s var(--ease-out-expo) 0.15s both; }
-#s12.active .seal .sq2  { animation-delay: 0.4s; }
-#s12.active .seal .circ { stroke-dasharray: 151; animation: drawCirc 1.4s var(--ease-out-expo) 0.7s both; }
-#s12.active .seal .core { animation: coreIn 0.8s ease 1.2s both; }
+#s13.active .seal .sq   { stroke-dasharray: 264; animation: drawSq 1.6s var(--ease-out-expo) 0.15s both; }
+#s13.active .seal .sq2  { animation-delay: 0.4s; }
+#s13.active .seal .circ { stroke-dasharray: 151; animation: drawCirc 1.4s var(--ease-out-expo) 0.7s both; }
+#s13.active .seal .core { animation: coreIn 0.8s ease 1.2s both; }
 @keyframes drawSq   { from { stroke-dashoffset: 264; } to { stroke-dashoffset: 0; } }
 @keyframes drawCirc { from { stroke-dashoffset: 151; } to { stroke-dashoffset: 0; } }
 @keyframes coreIn   { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
@@ -1603,7 +1603,7 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
   </button>
 
   <div class="topmid">
-    <div class="progress" id="progress" role="progressbar" aria-label="Step" aria-valuemin="1" aria-valuemax="12" aria-valuenow="1"></div>
+    <div class="progress" id="progress" role="progressbar" aria-label="Step" aria-valuemin="1" aria-valuemax="13" aria-valuenow="1"></div>
     <div class="app-title" data-t="app">After Salah</div>
   </div>
 
@@ -1974,8 +1974,23 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
   <button class="btn" type="button" data-next data-t="btn_next">Continue</button>
 </section>
 
-<!-- ════════ S12 — COMPLETE ════════ -->
+<!-- ════════ S12 — DUA FOR RIZQ ════════ -->
 <section class="screen" id="s12">
+  <div class="niche split">
+    <h2 class="h" data-t="h_s12d">Duʿā for rizq</h2>
+    <div class="ar md">
+      اللّٰهُمَّ ارْزُقْنِي رِزْقًا لَا أَشْخَصُ لَهُ،<br>وَإِنْ حَضَرْتُهُ لَمْ أَتْعَبْ فِيهِ،<br>وَإِنْ أَتَانِي مِنْ غَيْرِ مَسْأَلَةٍ فَلَا أَرْغَبْ عَنْهُ
+    </div>
+    <div class="rule"></div>
+    <div class="tr">Allāhumma-rzuqnī rizqan lā ashkhaṣu lahu,<br>wa in ḥaḍartuhu lam atʿab fīhi,<br>wa in atānī min ghayri masʾalatin fa-lā arghabu ʿanhu</div>
+    <div class="mn" data-t="m_s12d">O Allah, grant me provision that I do not have to go out seeking. And if I must go to it, do not make me exhausted in pursuing it. And if it comes to me without my asking for it, do not let me turn away from it.</div>
+    <div class="note" data-t="n_s12d">A duʿā asking Allah for effortless, blessed provision — rizq that comes easily, without hardship in its pursuit, and without ingratitude when it arrives.</div>
+  </div>
+  <button class="btn" type="button" data-next data-t="btn_next">Continue</button>
+</section>
+
+<!-- ════════ S13 — COMPLETE ════════ -->
+<section class="screen" id="s13">
   <div class="finale">
     <svg class="seal" viewBox="0 0 120 120" aria-hidden="true">
       <rect class="line sq"  x="27" y="27" width="66" height="66"/>
@@ -1987,8 +2002,8 @@ button, select, [role="button"], .theme-menu, .sheet, .menu-scrim, .sheet-scrim,
       </g>
     </svg>
     <div class="finale-title">تَقَبَّلَ اللّٰهُ</div>
-    <h2 class="h" data-t="h_s12">Taqabbala-llāh</h2>
-    <p class="finale-msg" data-t="m_s12">May Allah accept your remembrance and grant you what you have asked for.</p>
+    <h2 class="h" data-t="h_s13">Taqabbala-llāh</h2>
+    <p class="finale-msg" data-t="m_s13">May Allah accept your remembrance and grant you what you have asked for.</p>
     <div class="finale-log">
       <div class="logged">
         <div class="logged-text" id="loggedText" aria-live="polite">&nbsp;</div>
@@ -2211,7 +2226,7 @@ var EN = {
   calHint: 'Tap a prayer to mark it done or not done.',
   myLoc: 'My location', locating: 'Finding you…', locFail: 'Couldn’t get your location',
   adj0: 'No change', adjM1: '1 day earlier', adjM: '{n} days earlier', adjP1: '1 day later', adjP: '{n} days later',
-  resume: 'Resume zikr after {p}', resumePlain: 'Resume zikr (Step {step} of 12)', start_fresh: 'Start from beginning',
+  resume: 'Resume zikr after {p}', resumePlain: 'Resume zikr (Step {step} of 13)', start_fresh: 'Start from beginning',
   set_backup: 'Backup & Restore', btn_export: 'Export data', btn_import: 'Import data',
   backup_hint: 'Save your prayer streaks and history to a file, or restore them onto a new device.',
   import_success: 'Progress restored successfully.', import_fail: 'Could not read backup file.'
@@ -2257,8 +2272,11 @@ var UR = {
   h_s11: 'اسمِ اعظم کے ساتھ دعا',
   m_s11: 'اے اللہ! میں تجھ سے اس وسیلے سے سوال کرتا ہوں کہ میں گواہی دیتا ہوں کہ تو ہی اللہ ہے، تیرے سوا کوئی معبود نہیں، تو یکتا اور بے نیاز ہے، جس نے نہ کسی کو جنا اور نہ وہ جنا گیا، اور کوئی اس کا ہمسر نہیں۔',
   n_s11: 'سنن ابو داؤد اور ابن ماجہ۔ نبی ﷺ نے فرمایا: "تم نے اللہ کو اس کے اسمِ اعظم کے ساتھ پکارا ہے، جس کے ذریعے جب اسے پکارا جائے تو وہ جواب دیتا ہے۔"',
-  h_s12: 'اللہ قبول فرمائے',
-  m_s12: 'اللہ آپ کا ذکر قبول فرمائے اور جو آپ نے مانگا وہ عطا فرمائے۔',
+  h_s12d: 'رزق کی دعا',
+  m_s12d: 'اے اللہ! مجھے ایسا رزق عطا فرما جس کے لیے مجھے نکلنا نہ پڑے، اور اگر مجھے اس کے پاس جانا پڑے تو اس میں مجھے تھکا نہ، اور اگر وہ بغیر مانگے میرے پاس آ جائے تو مجھے اس سے بے رغبت نہ ہونے دے۔',
+  n_s12d: 'رزقِ حلال کی دعا — آسان، بابرکت رزق جو بغیر مشقت کے ملے، اس کے حصول میں تھکاوٹ نہ ہو، اور جب ملے تو ناشکری نہ ہو۔',
+  h_s13: 'اللہ قبول فرمائے',
+  m_s13: 'اللہ آپ کا ذکر قبول فرمائے اور جو آپ نے مانگا وہ عطا فرمائے۔',
 
   btn_next: 'آگے بڑھیں', btn_done: 'مکمل', btn_close: 'بند کریں',
   st_streak: 'دن مسلسل', st_best: 'بہترین سلسلہ', st_days: 'اس ماہ کے دن', st_full: 'پانچوں نمازیں',
@@ -2291,7 +2309,7 @@ var UR = {
   calHint: 'نماز پر دبا کر درج کریں یا ہٹائیں۔',
   myLoc: 'میری لوکیشن', locating: 'لوکیشن تلاش ہو رہی ہے…', locFail: 'لوکیشن نہیں مل سکی',
   adj0: 'کوئی تبدیلی نہیں', adjM1: '1 دن پیچھے', adjM: '{n} دن پیچھے', adjP1: '1 دن آگے', adjP: '{n} دن آگے',
-  resume: '{p} کے بعد کا ذکر جاری رکھیں', resumePlain: 'ذکر جاری رکھیں (مرحلہ {step} از 12)', start_fresh: 'شروع سے دوبارہ کریں',
+  resume: '{p} کے بعد کا ذکر جاری رکھیں', resumePlain: 'ذکر جاری رکھیں (مرحلہ {step} از 13)', start_fresh: 'شروع سے دوبارہ کریں',
   set_backup: 'بیک اپ اور بحالی', btn_export: 'ڈیٹا ایکسپورٹ کریں', btn_import: 'ڈیٹا امپورٹ کریں',
   backup_hint: 'اپنی دعاؤں کا ریکارڈ اور سلسلہ فائل میں محفوظ کریں، یا نئے فون میں منتقل کریں۔',
   import_success: 'ریکارڈ کامیابی سے بحال ہو گیا۔', import_fail: 'فائل پڑھی نہیں جا سکی۔'
@@ -2790,9 +2808,9 @@ function onTap(el, fn) {
 
 /* ══════════════════════════════════════
    SCREEN MANAGEMENT
-   s0 = Today, s1…s11 = zikr, s12 = complete
+   s0 = Today, s1…s12 = zikr, s13 = complete
 ══════════════════════════════════════ */
-var SCREENS = ['s0','s1','s2','s3','s4','s5','s6','s7','s8','s9','s10','s11','s12'];
+var SCREENS = ['s0','s1','s2','s3','s4','s5','s6','s7','s8','s9','s10','s11','s12','s13'];
 var HOME = 0, S_ASTAGHFAR = 1, S_TASBEEH = 4, LAST = SCREENS.length - 1;
 var LABELS = [
   'Today',
@@ -2807,6 +2825,7 @@ var LABELS = [
   'Duʿā for sufficiency',
   'Duʿā for relief',
   'Duʿā by the Greatest Name',
+  'Duʿā for rizq',
   'Zikr complete'
 ];
 
@@ -3338,7 +3357,7 @@ function paintChips(container, mask, mine, dayDate) {
 }
 
 /* ══════════════════════════════════════
-   S12 — COMPLETE: log it for the right prayer
+   S13 — COMPLETE: log it for the right prayer
 ══════════════════════════════════════ */
 var session = { logged: false };
 
